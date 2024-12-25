@@ -1,0 +1,12 @@
+streamlit
+pandas
+numpy
+requests
+folium
+streamlit-folium
+plotly
+python-dotenv
+geopy
+holiday
+pytz
+tenacity
