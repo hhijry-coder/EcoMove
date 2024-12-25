@@ -392,6 +392,22 @@ class RideSharePoint:
     next_departure: datetime
     wait_time: int
 
+    @property
+    def demand_percentage(self) -> float:
+        return (self.current_demand / self.capacity) if self.capacity > 0 else 0.0
+
+    @property
+    def status(self) -> str:
+        if self.demand_percentage > 0.8:
+            return "High Demand"
+        elif self.demand_percentage > 0.5:
+            return "Moderate Demand"
+        return "Low Demand"
+
+    @property
+    def is_available(self) -> bool:
+        return self.current_demand < self.capacity
+
 class EcoImpactCalculator:
     def __init__(self, config: Config):
         self.config = config
