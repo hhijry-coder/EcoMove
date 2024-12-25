@@ -73,10 +73,10 @@ class TabukEcoMoveOptimizer:
         hours = list(range(6, 24))
         return [random.randint(30, 100) for _ in hours]
 
-    @st.cache_data(ttl=1800)
     def generate_heat_data(self):
         heat_data = []
-        for loc in st.session_state.campus_locations.values():
+        locations = list(st.session_state.campus_locations.values())
+        for loc in locations:
             for _ in range(20):
                 lat = loc[0] + random.uniform(-0.001, 0.001)
                 lon = loc[1] + random.uniform(-0.001, 0.001)
