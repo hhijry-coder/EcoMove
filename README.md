@@ -1,6 +1,5 @@
 ![EcoMove Optimizer](assets/Leonardo_Phoenix_09_Create_a_professional_and_visually_strikin_0.jpg)
 
-# EcoMove Optimizer - Tabuk University
 
 
 # EcoMove Optimizer - Tabuk University - Smart Transportation Team
