@@ -13,21 +13,6 @@ from typing import List, Dict, Tuple, Optional
 import json
 from collections import defaultdict
 import calendar
-import streamlit as st
-import pandas as pd
-import numpy as np
-import requests
-import folium
-from streamlit_folium import folium_static
-from datetime import datetime, timedelta
-import plotly.express as px
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
-from dataclasses import dataclass
-from typing import List, Dict, Tuple, Optional
-import json
-from collections import defaultdict
-import calendar
 
 class Config:
     TOMTOM_API_KEY = "eXu4hsMGOsruJNBtXirN0pkU6I3DhNo2"
@@ -77,6 +62,47 @@ class Config:
         "13:00", "13:30", "14:00", "14:30",
         "16:00", "16:30", "17:00", "17:30"
     ]
+
+
+@dataclass
+class TrafficIncident:
+    id: str
+    type: str
+    severity: str
+    location: Dict[str, float]
+    description: str
+    start_time: datetime
+    end_time: datetime
+
+@dataclass
+class RideSharePoint:
+    name: str
+    location: Dict[str, float]
+    capacity: int
+    current_demand: int
+    eco_score: float
+    amenities: List[str]
+    routes: List[str]
+    next_departure: datetime
+    wait_time: int
+
+    @property
+    def demand_percentage(self) -> float:
+        return (self.current_demand / self.capacity) if self.capacity > 0 else 0.0
+
+    @property
+    def status(self) -> str:
+        if self.demand_percentage > 0.8:
+            return "High Demand"
+        elif self.demand_percentage > 0.5:
+            return "Moderate Demand"
+        return "Low Demand"
+
+    @property
+    def is_available(self) -> bool:
+        return self.current_demand < self.capacity
+
+
 class TomTomAPI:
     def __init__(self, api_key: str):
         self.api_key = api_key
@@ -385,44 +411,6 @@ def distance_between(lat1: float, lon1: float, lat2: float, lon2: float) -> floa
     
     return R * c
     
-@dataclass
-class TrafficIncident:
-    id: str
-    type: str
-    severity: str
-    location: Dict[str, float]
-    description: str
-    start_time: datetime
-    end_time: datetime
-
-@dataclass
-class RideSharePoint:
-    name: str
-    location: Dict[str, float]
-    capacity: int
-    current_demand: int
-    eco_score: float
-    amenities: List[str]
-    routes: List[str]
-    next_departure: datetime
-    wait_time: int
-
-    @property
-    def demand_percentage(self) -> float:
-        return (self.current_demand / self.capacity) if self.capacity > 0 else 0.0
-
-    @property
-    def status(self) -> str:
-        if self.demand_percentage > 0.8:
-            return "High Demand"
-        elif self.demand_percentage > 0.5:
-            return "Moderate Demand"
-        return "Low Demand"
-
-    @property
-    def is_available(self) -> bool:
-        return self.current_demand < self.capacity
-
 class EcoImpactCalculator:
     def __init__(self, config: Config):
         self.config = config
