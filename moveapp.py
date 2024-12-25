@@ -490,11 +490,12 @@ def calculate_overall_congestion(traffic_flow: Dict) -> float:
     
     congestion_levels = []
     for segment in segments:
-        current_speed = segment.get('currentSpeed', 0)
-        free_flow_speed = segment.get('freeFlowSpeed', 1)
-        if free_flow_speed > 0:
-            congestion = (1 - current_speed / free_flow_speed) * 100
-            congestion_levels.append(congestion)
+        if isinstance(segment, dict):
+            current_speed = segment.get('currentSpeed', 0)
+            free_flow_speed = segment.get('freeFlowSpeed', 1)
+            if free_flow_speed > 0:
+                congestion = (1 - current_speed / free_flow_speed) * 100
+                congestion_levels.append(congestion)
     
     return np.mean(congestion_levels) if congestion_levels else 50.0
 
