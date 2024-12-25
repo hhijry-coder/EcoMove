@@ -9,6 +9,7 @@ from PIL import Image
 import numpy as np
 from folium import plugins
 from dotenv import load_dotenv
+import os
 
 # Must be the first Streamlit command
 st.set_page_config(page_title="Tabuk University EcoMove", page_icon="🚗", layout="wide")
