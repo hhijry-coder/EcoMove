@@ -507,7 +507,7 @@ def calculate_average_speed(traffic_flow: Dict) -> float:
     if not segments:
         return 40.0
     
-    speeds = [segment.get('currentSpeed', 40) for segment in segments]
+    speeds = [segment.get('currentSpeed', 40) for segment in segments if isinstance(segment, dict)]
     return np.mean(speeds) if speeds else 40.0
 
 def get_incident_location(incident: Dict) -> str:
