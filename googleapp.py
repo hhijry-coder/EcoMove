@@ -181,8 +181,8 @@ class TabukEcoMoveOptimizer:
     def find_ride_form(self):
         pickup = st.selectbox("Pickup Location | موقع الالتقاط", list(self.campus_locations.keys()))
         destination = st.selectbox("Destination | الوجهة", list(self.campus_locations.keys()))
-        date = st.date_input("Date | التاريخ")
-        time = st.time_input("Preferred Time | الوقت المفضل")
+        date = st.date_input("Date | التاريخ", key="find_ride_date")
+        time = st.time_input("Preferred Time | الوقت المفضل", key="find_ride_time")
         
         if st.button("Search Rides | البحث عن الرحلات"):
             self.display_available_rides()
@@ -190,8 +190,8 @@ class TabukEcoMoveOptimizer:
     def offer_ride_form(self):
         start = st.selectbox("Start Location | موقع البداية", list(self.campus_locations.keys()))
         end = st.selectbox("End Location | موقع النهاية", list(self.campus_locations.keys()))
-        date = st.date_input("Date | التاريخ")
-        time = st.time_input("Departure Time | وقت المغادرة")
+        date = st.date_input("Date | التاريخ", key="offer_ride_date")
+        time = st.time_input("Departure Time | وقت المغادرة", key="offer_ride_time")
         seats = st.number_input("Available Seats | المقاعد المتاحة", 1, 4)
         
         if st.button("Offer Ride | عرض الرحلة"):
