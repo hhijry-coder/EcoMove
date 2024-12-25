@@ -400,23 +400,24 @@ def create_enhanced_map(center_lat: float, center_lon: float,
     # Add traffic flow visualization
     if 'flowSegmentData' in traffic_flow:
         for segment in traffic_flow['flowSegmentData']:
-            coordinates = segment.get('coordinates', {})
-            if coordinates:
-                congestion = segment.get('currentSpeed', 0) / segment.get('freeFlowSpeed', 1)
-                color = (
-                    '#FF0000' if congestion < 0.5 else
-                    '#FFA500' if congestion < 0.75 else
-                    '#00FF00'
-                )
+            if isinstance(segment, dict):
+                coordinates = segment.get('coordinates', {})
+                if coordinates:
+                    congestion = segment.get('currentSpeed', 0) / segment.get('freeFlowSpeed', 1)
+                    color = (
+                        '#FF0000' if congestion < 0.5 else
+                        '#FFA500' if congestion < 0.75 else
+                        '#00FF00'
+                    )
 
-                folium.PolyLine(
-                    locations=coordinates,
-                    color=color,
-                    weight=5,
-                    opacity=0.7,
-                    popup=f"Speed: {segment.get('currentSpeed')} km/h<br>"
-                          f"Free flow: {segment.get('freeFlowSpeed')} km/h"
-                ).add_to(m)
+                    folium.PolyLine(
+                        locations=coordinates,
+                        color=color,
+                        weight=5,
+                        opacity=0.7,
+                        popup=f"Speed: {segment.get('currentSpeed')} km/h<br>"
+                              f"Free flow: {segment.get('freeFlowSpeed')} km/h"
+                    ).add_to(m)
 
     # Add traffic incidents
     for incident in traffic_incidents:
