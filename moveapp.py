@@ -472,12 +472,12 @@ def calculate_traffic_score(traffic_data: Dict) -> float:
     
     scores = []
     for segment in segments:
-        current_speed = segment.get('currentSpeed', 0)
-        free_flow_speed = segment.get('freeFlowSpeed', 1)
-        
-        ratio = current_speed / free_flow_speed if free_flow_speed > 0 else 0
-        score = min(10, ratio * 10)
-        scores.append(score)
+        if isinstance(segment, dict):
+            current_speed = segment.get('currentSpeed', 0)
+            free_flow_speed = segment.get('freeFlowSpeed', 1)
+            ratio = current_speed / free_flow_speed if free_flow_speed > 0 else 0
+            score = min(10, ratio * 10)
+            scores.append(score)
     
     return sum(scores) / len(scores) if scores else 5.0
 
