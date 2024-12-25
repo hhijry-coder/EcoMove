@@ -1,4 +1,6 @@
 import streamlit as st
+st.set_page_config(page_title="Tabuk University EcoMove", page_icon="🚗", layout="wide")
+
 import pandas as pd
 import folium
 from streamlit_folium import st_folium
@@ -11,8 +13,6 @@ from folium import plugins
 from dotenv import load_dotenv
 import os
 
-# Must be the first Streamlit command
-st.set_page_config(page_title="Tabuk University EcoMove", page_icon="🚗", layout="wide")
 
 load_dotenv()
 GOOGLE_MAPS_API_KEY = os.getenv('GOOGLE_MAPS_API_KEY')
