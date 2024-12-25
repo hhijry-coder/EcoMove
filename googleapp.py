@@ -7,9 +7,10 @@ import json
 import random
 from PIL import Image
 import numpy as np
+from folium import plugins
 
 GOOGLE_MAPS_API_KEY = "AIzaSyAuyGwowFvbkrhbHqewP2PsBPT2o8fXBuU"
-TABUK_UNIVERSITY_COORDS = [28.3835, 36.4868]  # Tabuk University coordinates
+TABUK_UNIVERSITY_COORDS = [28.3835, 36.4868]
 
 class TabukEcoMoveOptimizer:
     def __init__(self):
@@ -21,14 +22,79 @@ class TabukEcoMoveOptimizer:
             "Student Housing": [28.3845, 36.4878],
             "University Library": [28.3833, 36.4870]
         }
+        self.roads = [
+            {
+                "coordinates": [[28.3835, 36.4868], [28.3840, 36.4873]],
+                "intensity": "high",
+                "name": "Main Campus Road"
+            },
+            {
+                "coordinates": [[28.3830, 36.4863], [28.3833, 36.4870]],
+                "intensity": "medium",
+                "name": "Library Avenue"
+            },
+            {
+                "coordinates": [[28.3833, 36.4870], [28.3845, 36.4878]],
+                "intensity": "low",
+                "name": "Housing Road"
+            }
+        ]
+        self.congestion_points = [
+            {
+                "location": [28.3835, 36.4868],
+                "level": "severe",
+                "delay": "15 mins",
+                "description": "Main Gate Congestion"
+            },
+            {
+                "location": [28.3840, 36.4873],
+                "level": "moderate",
+                "delay": "8 mins",
+                "description": "Engineering College Junction"
+            }
+        ]
         
     def setup_config(self):
-        st.set_page_config(
-            page_title="Tabuk University EcoMove",
-            page_icon="🚗",
-            layout="wide"
-        )
+        st.set_page_config(page_title="Tabuk University EcoMove", page_icon="🚗", layout="wide")
         
+    def add_traffic_flow(self, m):
+        colors = {
+            "low": "#00ff00",
+            "medium": "#ffa500",
+            "high": "#ff0000"
+        }
+        
+        for road in self.roads:
+            folium.PolyLine(
+                road["coordinates"],
+                weight=5,
+                color=colors[road["intensity"]],
+                popup=f"{road['name']} - Traffic: {road['intensity'].title()}",
+                opacity=0.8,
+                dash_array='10'
+            ).add_to(m)
+    
+    def add_congestion_markers(self, m):
+        for point in self.congestion_points:
+            folium.CircleMarker(
+                location=point["location"],
+                radius=15,
+                color="red" if point["level"] == "severe" else "orange",
+                fill=True,
+                popup=f"{point['description']}<br>Delay: {point['delay']}"
+            ).add_to(m)
+    
+    def show_traffic_timeline(self):
+        hours = list(range(6, 24))
+        traffic_data = [random.randint(30, 100) for _ in hours]
+        
+        chart_data = pd.DataFrame({
+            'Hour': hours,
+            'Traffic Density': traffic_data
+        })
+        
+        st.line_chart(chart_data.set_index('Hour'))
+
     def main(self):
         st.title("جامعة تبوك EcoMove Optimizer 🌿")
         st.markdown("Smart Transportation Solution for Tabuk University Community")
@@ -51,8 +117,43 @@ class TabukEcoMoveOptimizer:
 
     def show_dashboard(self):
         st.subheader("Campus Traffic Map | خريطة حركة المرور في الحرم الجامعي")
-        self.display_traffic_map()
         
+        # Create traffic map with all visualizations
+        m = folium.Map(location=TABUK_UNIVERSITY_COORDS, zoom_start=16)
+        
+        # Add campus locations
+        for name, coords in self.campus_locations.items():
+            folium.Marker(
+                coords,
+                popup=name,
+                icon=folium.Icon(color='blue', icon='info-sign')
+            ).add_to(m)
+        
+        # Add traffic flow visualization
+        self.add_traffic_flow(m)
+        
+        # Add congestion points
+        self.add_congestion_markers(m)
+        
+        # Add heatmap layer
+        heat_data = []
+        for loc in self.campus_locations.values():
+            for _ in range(20):
+                lat = loc[0] + random.uniform(-0.001, 0.001)
+                lon = loc[1] + random.uniform(-0.001, 0.001)
+                weight = random.uniform(0.2, 1.0)
+                heat_data.append([lat, lon, weight])
+        
+        plugins.HeatMap(heat_data, min_opacity=0.4).add_to(m)
+        
+        # Display the map
+        folium_static(m)
+        
+        # Display traffic timeline
+        st.subheader("Traffic Density Timeline | جدول زمني لكثافة المرور")
+        self.show_traffic_timeline()
+        
+        # Display metrics
         st.subheader("Quick Stats | إحصائيات سريعة")
         col1, col2, col3, col4 = st.columns(4)
         
@@ -66,56 +167,8 @@ class TabukEcoMoveOptimizer:
         for (label, (value, unit)), col in zip(stats.items(), [col1, col2, col3, col4]):
             with col:
                 st.metric(label=label, value=f"{value} {unit}")
-        
-        st.subheader("Notifications | إشعارات")
-        self.display_notifications()
 
-    def display_traffic_map(self):
-        m = folium.Map(
-            location=TABUK_UNIVERSITY_COORDS,
-            zoom_start=16
-        )
-        
-        # Add campus locations
-        for name, coords in self.campus_locations.items():
-            folium.Marker(
-                coords,
-                popup=name,
-                icon=folium.Icon(color='red', icon='info-sign')
-            ).add_to(m)
-        
-        # Add traffic layer
-        folium.TileLayer(
-            tiles='https://mt1.google.com/vt/lyrs=traffic',
-            attr='Google Maps Traffic',
-            name='Traffic'
-        ).add_to(m)
-        
-        folium_static(m)
-
-    def display_quick_stats(self):
-        cols = st.columns(2)
-        
-        stats = {
-            "Active Rides | رحلات نشطة": [random.randint(10, 50), "rides"],
-            "CO2 Saved | ثاني أكسيد الكربون الموفر": [random.randint(100, 500), "kg"],
-            "Temperature | درجة الحرارة": [random.randint(25, 45), "°C"],
-            "Air Quality | جودة الهواء": [random.randint(50, 150), "AQI"]
-        }
-        
-        for i, (label, (value, unit)) in enumerate(stats.items()):
-            with cols[i % 2]:
-                st.metric(label=label, value=f"{value} {unit}")
-
-    def display_notifications(self):
-        notifications = [
-            "Heavy traffic at Main Gate | حركة مرور كثيفة عند البوابة الرئيسية",
-            "New shuttle service to Student Housing | خدمة نقل جديدة إلى سكن الطلاب",
-            "Weather alert: Sandstorm expected | تنبيه الطقس: عاصفة رملية متوقعة"
-        ]
-        
-        for note in notifications:
-            st.info(note)
+[Previous code remains the same until show_dashboard method...]
 
     def show_route_planner(self):
         st.subheader("Route Planner | مخطط الطريق")
@@ -137,8 +190,14 @@ class TabukEcoMoveOptimizer:
         if start and end and start != end:
             st.success(f"Route calculated from {start} to {end} | تم حساب الطريق")
             
-            # Display route on map
+            # Create map for route visualization
             m = folium.Map(location=TABUK_UNIVERSITY_COORDS, zoom_start=16)
+            
+            # Add traffic flow visualization
+            self.add_traffic_flow(m)
+            
+            # Add congestion markers
+            self.add_congestion_markers(m)
             
             # Add markers for start and end
             folium.Marker(
@@ -153,10 +212,10 @@ class TabukEcoMoveOptimizer:
                 icon=folium.Icon(color='red')
             ).add_to(m)
             
-            # Draw line between points
+            # Draw route line
             folium.PolyLine(
                 locations=[self.campus_locations[start], self.campus_locations[end]],
-                weight=2,
+                weight=3,
                 color='blue',
                 opacity=0.8
             ).add_to(m)
@@ -217,40 +276,11 @@ class TabukEcoMoveOptimizer:
     def show_analytics(self):
         st.subheader("Traffic Analytics | تحليلات حركة المرور")
         
-        self.display_heatmap()
-        self.display_usage_stats()
-
-    def display_heatmap(self):
-        st.subheader("Campus Traffic Heatmap | خريطة الحرارة لحركة المرور في الحرم الجامعي")
+        # Display traffic patterns
+        st.markdown("### Traffic Patterns | أنماط حركة المرور")
+        self.show_traffic_timeline()
         
-        # Create a map centered on Tabuk University
-        m = folium.Map(location=TABUK_UNIVERSITY_COORDS, zoom_start=16)
-        
-        # Generate sample heatmap data around campus locations
-        heat_data = []
-        for loc in self.campus_locations.values():
-            # Generate multiple points around each location with varying weights
-            for _ in range(20):
-                lat = loc[0] + random.uniform(-0.001, 0.001)
-                lon = loc[1] + random.uniform(-0.001, 0.001)
-                weight = random.uniform(0.2, 1.0)
-                heat_data.append([lat, lon, weight])
-        
-        # Add the heatmap layer
-        from folium import plugins
-        plugins.HeatMap(heat_data).add_to(m)
-        
-        # Add markers for campus locations
-        for name, coords in self.campus_locations.items():
-            folium.Marker(
-                coords,
-                popup=name,
-                icon=folium.Icon(color='red', icon='info-sign')
-            ).add_to(m)
-            
-        folium_static(m)
-
-    def display_usage_stats(self):
+        # Display detailed analytics
         col1, col2 = st.columns(2)
         
         with col1:
@@ -271,6 +301,37 @@ class TabukEcoMoveOptimizer:
                 'Usage | الاستخدام': ['35%', '28%', '22%']
             })
             st.dataframe(routes_data)
+            
+        # Display traffic heatmap
+        st.subheader("Traffic Heatmap | خريطة الحرارة لحركة المرور")
+        m = folium.Map(location=TABUK_UNIVERSITY_COORDS, zoom_start=16)
+        
+        # Add base locations
+        for name, coords in self.campus_locations.items():
+            folium.Marker(
+                coords,
+                popup=name,
+                icon=folium.Icon(color='red', icon='info-sign')
+            ).add_to(m)
+        
+        # Add traffic flow
+        self.add_traffic_flow(m)
+        
+        # Add congestion markers
+        self.add_congestion_markers(m)
+        
+        # Add heatmap layer
+        heat_data = []
+        for loc in self.campus_locations.values():
+            for _ in range(20):
+                lat = loc[0] + random.uniform(-0.001, 0.001)
+                lon = loc[1] + random.uniform(-0.001, 0.001)
+                weight = random.uniform(0.2, 1.0)
+                heat_data.append([lat, lon, weight])
+        
+        plugins.HeatMap(heat_data).add_to(m)
+        
+        folium_static(m)
 
 if __name__ == "__main__":
     app = TabukEcoMoveOptimizer()
