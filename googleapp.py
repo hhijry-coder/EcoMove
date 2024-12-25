@@ -151,7 +151,7 @@ class TabukEcoMoveOptimizer:
         plugins.HeatMap(heat_data, min_opacity=0.4).add_to(m)
         
         # Display the map
-        folium_static(m)
+        st_folium(m, width=None, height=500)
         
         # Display traffic timeline
         st.subheader("Traffic Density Timeline | جدول زمني لكثافة المرور")
