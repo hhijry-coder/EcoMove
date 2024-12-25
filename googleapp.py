@@ -521,9 +521,9 @@ class TabukEcoMoveOptimizer:
             }
         
         col1, col2, col3, col4 = st.columns(4)
-                for (label, (value, unit)), col in zip(st.session_state.metrics.items(), [col1, col2, col3, col4]):
-                    with col:
-                        st.metric(label=label, value=f"{value} {unit}")
+        for (label, (value, unit)), col in zip(st.session_state.metrics.items(), [col1, col2, col3, col4]):
+            with col:
+                st.metric(label=label, value=f"{value} {unit}")
         
             def show_route_planner(self):
                 st.subheader("Route Planner | مخطط الطريق")
