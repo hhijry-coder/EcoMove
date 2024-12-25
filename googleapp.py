@@ -14,79 +14,53 @@ import os
 # Set page config at the very start
 st.set_page_config(page_title="Tabuk University EcoMove", page_icon="🚗", layout="wide")
 
-# Load environment variables
-load_dotenv()
-GOOGLE_MAPS_API_KEY = os.getenv('GOOGLE_MAPS_API_KEY')
 TABUK_UNIVERSITY_COORDS = [28.3835, 36.4868]
+CAMPUS_LOCATIONS = {
+    "Main Gate": [28.3835, 36.4868],
+    "College of Engineering": [28.3840, 36.4873],
+    "College of Medicine": [28.3830, 36.4863],
+    "Student Housing": [28.3845, 36.4878],
+    "University Library": [28.3833, 36.4870]
+}
+ROADS = [
+    {
+        "coordinates": [[28.3835, 36.4868], [28.3840, 36.4873]],
+        "intensity": "high",
+        "name": "Main Campus Road"
+    },
+    {
+        "coordinates": [[28.3830, 36.4863], [28.3833, 36.4870]],
+        "intensity": "medium",
+        "name": "Library Avenue"
+    },
+    {
+        "coordinates": [[28.3833, 36.4870], [28.3845, 36.4878]],
+        "intensity": "low",
+        "name": "Housing Road"
+    }
+]
+CONGESTION_POINTS = [
+    {
+        "location": [28.3835, 36.4868],
+        "level": "severe",
+        "delay": "15 mins",
+        "description": "Main Gate Congestion"
+    },
+    {
+        "location": [28.3840, 36.4873],
+        "level": "moderate",
+        "delay": "8 mins",
+        "description": "Engineering College Junction"
+    }
+]
 
 class TabukEcoMoveOptimizer:
     def __init__(self):
-        self.setup_initial_state()
-        
-    def setup_initial_state(self):
-        if 'campus_locations' not in st.session_state:
-            st.session_state.campus_locations = {
-                "Main Gate": [28.3835, 36.4868],
-                "College of Engineering": [28.3840, 36.4873],
-                "College of Medicine": [28.3830, 36.4863],
-                "Student Housing": [28.3845, 36.4878],
-                "University Library": [28.3833, 36.4870]
-            }
-        
-        if 'roads' not in st.session_state:
-            st.session_state.roads = [
-                {
-                    "coordinates": [[28.3835, 36.4868], [28.3840, 36.4873]],
-                    "intensity": "high",
-                    "name": "Main Campus Road"
-                },
-                {
-                    "coordinates": [[28.3830, 36.4863], [28.3833, 36.4870]],
-                    "intensity": "medium",
-                    "name": "Library Avenue"
-                },
-                {
-                    "coordinates": [[28.3833, 36.4870], [28.3845, 36.4878]],
-                    "intensity": "low",
-                    "name": "Housing Road"
-                }
-            ]
-            
-        if 'congestion_points' not in st.session_state:
-            st.session_state.congestion_points = [
-                {
-                    "location": [28.3835, 36.4868],
-                    "level": "severe",
-                    "delay": "15 mins",
-                    "description": "Main Gate Congestion"
-                },
-                {
-                    "location": [28.3840, 36.4873],
-                    "level": "moderate",
-                    "delay": "8 mins",
-                    "description": "Engineering College Junction"
-                }
-            ]
-
-    @st.cache_data(ttl=1800)
-    def generate_traffic_timeline(self):
-        hours = list(range(6, 24))
-        return [random.randint(30, 100) for _ in hours]
-
-    def generate_heat_data(self):
-        heat_data = []
-        locations = list(st.session_state.campus_locations.values())
-        for loc in locations:
-            for _ in range(20):
-                lat = loc[0] + random.uniform(-0.001, 0.001)
-                lon = loc[1] + random.uniform(-0.001, 0.001)
-                weight = random.uniform(0.2, 1.0)
-                heat_data.append([lat, lon, weight])
-        return heat_data
+        pass
 
     def add_traffic_flow(self, m):
         colors = {"low": "#00ff00", "medium": "#ffa500", "high": "#ff0000"}
-        for road in st.session_state.roads:
+        for road in ROADS:
             folium.PolyLine(
                 road["coordinates"],
                 weight=5,
@@ -97,7 +71,7 @@ class TabukEcoMoveOptimizer:
             ).add_to(m)
     
     def add_congestion_markers(self, m):
-        for point in st.session_state.congestion_points:
+        for point in CONGESTION_POINTS:
             folium.CircleMarker(
                 location=point["location"],
                 radius=15,
@@ -107,47 +81,29 @@ class TabukEcoMoveOptimizer:
             ).add_to(m)
     
     def show_traffic_timeline(self):
-        if 'traffic_data' not in st.session_state:
-            st.session_state.traffic_data = self.generate_traffic_timeline()
-        
         hours = list(range(6, 24))
+        traffic_data = [random.randint(30, 100) for _ in hours]
         chart_data = pd.DataFrame({
             'Hour': hours,
-            'Traffic Density': st.session_state.traffic_data
+            'Traffic Density': traffic_data
         })
-        
         st.line_chart(chart_data.set_index('Hour'))
 
-    def main(self):
-        st.title("جامعة تبوك EcoMove Optimizer 🌿")
-        st.markdown("Smart Transportation Solution for Tabuk University Community")
-        
-        page = st.sidebar.selectbox(
-            "التنقل | Navigation",
-            ["Dashboard | لوحة التحكم", 
-             "Route Planner | مخطط الطريق", 
-             "Ride Sharing | مشاركة الركوب", 
-             "Analytics | التحليلات"]
-        )
-        
-        pages = {
-            "Dashboard | لوحة التحكم": self.show_dashboard,
-            "Route Planner | مخطط الطريق": self.show_route_planner,
-            "Ride Sharing | مشاركة الركوب": self.show_ride_sharing,
-            "Analytics | التحليلات": self.show_analytics
-        }
-        pages[page]()
+    def generate_heat_data(self):
+        heat_data = []
+        for loc in CAMPUS_LOCATIONS.values():
+            for _ in range(20):
+                lat = loc[0] + random.uniform(-0.001, 0.001)
+                lon = loc[1] + random.uniform(-0.001, 0.001)
+                heat_data.append([lat, lon, random.uniform(0.2, 1.0)])
+        return heat_data
 
     def show_dashboard(self):
         st.subheader("Campus Traffic Map | خريطة حركة المرور في الحرم الجامعي")
         
-        if st.button('Refresh Data | تحديث البيانات (Updates every 30 minutes)'):
-            st.session_state.clear()
-            st.rerun()
-        
         m = folium.Map(location=TABUK_UNIVERSITY_COORDS, zoom_start=16)
         
-        for name, coords in st.session_state.campus_locations.items():
+        for name, coords in CAMPUS_LOCATIONS.items():
             folium.Marker(
                 coords,
                 popup=name,
@@ -156,27 +112,22 @@ class TabukEcoMoveOptimizer:
         
         self.add_traffic_flow(m)
         self.add_congestion_markers(m)
-        
-        if 'heat_data' not in st.session_state:
-            st.session_state.heat_data = self.generate_heat_data()
-        
-        plugins.HeatMap(st.session_state.heat_data, min_opacity=0.4).add_to(m)
+        plugins.HeatMap(self.generate_heat_data(), min_opacity=0.4).add_to(m)
         st_folium(m, width=None, height=500)
         
         st.subheader("Traffic Density Timeline | جدول زمني لكثافة المرور")
         self.show_traffic_timeline()
         
         st.subheader("Quick Stats | إحصائيات سريعة")
-        if 'metrics' not in st.session_state:
-            st.session_state.metrics = {
-                "Active Rides | رحلات نشطة": [random.randint(10, 50), "rides"],
-                "CO2 Saved | ثاني أكسيد الكربون الموفر": [random.randint(100, 500), "kg"],
-                "Temperature | درجة الحرارة": [random.randint(25, 45), "°C"],
-                "Air Quality | جودة الهواء": [random.randint(50, 150), "AQI"]
-            }
-        
         col1, col2, col3, col4 = st.columns(4)
-        for (label, (value, unit)), col in zip(st.session_state.metrics.items(), [col1, col2, col3, col4]):
+        metrics = {
+            "Active Rides | رحلات نشطة": [random.randint(10, 50), "rides"],
+            "CO2 Saved | ثاني أكسيد الكربون الموفر": [random.randint(100, 500), "kg"],
+            "Temperature | درجة الحرارة": [random.randint(25, 45), "°C"],
+            "Air Quality | جودة الهواء": [random.randint(50, 150), "AQI"]
+        }
+        
+        for (label, (value, unit)), col in zip(metrics.items(), [col1, col2, col3, col4]):
             with col:
                 st.metric(label=label, value=f"{value} {unit}")
 
@@ -186,8 +137,8 @@ class TabukEcoMoveOptimizer:
         col1, col2 = st.columns(2)
         
         with col1:
-            start = st.selectbox("Start Location | موقع البداية", list(st.session_state.campus_locations.keys()))
-            end = st.selectbox("End Location | موقع النهاية", list(st.session_state.campus_locations.keys()))
+            start = st.selectbox("Start Location | موقع البداية", list(CAMPUS_LOCATIONS.keys()))
+            end = st.selectbox("End Location | موقع النهاية", list(CAMPUS_LOCATIONS.keys()))
             
             if st.button("Find Route | ابحث عن الطريق"):
                 self.calculate_route(start, end)
@@ -205,19 +156,19 @@ class TabukEcoMoveOptimizer:
             self.add_congestion_markers(m)
             
             folium.Marker(
-                st.session_state.campus_locations[start],
+                CAMPUS_LOCATIONS[start],
                 popup=f"Start: {start}",
                 icon=folium.Icon(color='green')
             ).add_to(m)
             
             folium.Marker(
-                st.session_state.campus_locations[end],
+                CAMPUS_LOCATIONS[end],
                 popup=f"End: {end}",
                 icon=folium.Icon(color='red')
             ).add_to(m)
             
             folium.PolyLine(
-                locations=[st.session_state.campus_locations[start], st.session_state.campus_locations[end]],
+                locations=[CAMPUS_LOCATIONS[start], CAMPUS_LOCATIONS[end]],
                 weight=3,
                 color='blue',
                 opacity=0.8
@@ -248,8 +199,8 @@ class TabukEcoMoveOptimizer:
             self.offer_ride_form()
 
     def find_ride_form(self):
-        pickup = st.selectbox("Pickup Location | موقع الالتقاط", list(st.session_state.campus_locations.keys()))
-        destination = st.selectbox("Destination | الوجهة", list(st.session_state.campus_locations.keys()))
+        pickup = st.selectbox("Pickup Location | موقع الالتقاط", list(CAMPUS_LOCATIONS.keys()))
+        destination = st.selectbox("Destination | الوجهة", list(CAMPUS_LOCATIONS.keys()))
         date = st.date_input("Date | التاريخ", key="find_ride_date")
         time = st.time_input("Preferred Time | الوقت المفضل", key="find_ride_time")
         
@@ -257,8 +208,8 @@ class TabukEcoMoveOptimizer:
             self.display_available_rides()
 
     def offer_ride_form(self):
-        start = st.selectbox("Start Location | موقع البداية", list(st.session_state.campus_locations.keys()))
-        end = st.selectbox("End Location | موقع النهاية", list(st.session_state.campus_locations.keys()))
+        start = st.selectbox("Start Location | موقع البداية", list(CAMPUS_LOCATIONS.keys()))
+        end = st.selectbox("End Location | موقع النهاية", list(CAMPUS_LOCATIONS.keys()))
         date = st.date_input("Date | التاريخ", key="offer_ride_date")
         time = st.time_input("Departure Time | وقت المغادرة", key="offer_ride_time")
         seats = st.number_input("Available Seats | المقاعد المتاحة", 1, 4)
@@ -267,15 +218,13 @@ class TabukEcoMoveOptimizer:
             st.success("Ride offered successfully! | تم عرض الرحلة بنجاح")
 
     def display_available_rides(self):
-        if 'available_rides' not in st.session_state:
-            st.session_state.available_rides = pd.DataFrame({
-                'Driver | السائق': ['Abdullah M.', 'Fatima S.', 'Mohammed K.'],
-                'Time | الوقت': ['9:00 AM', '9:30 AM', '10:00 AM'],
-                'Price | السعر': ['15 SAR', '20 SAR', '12 SAR'],
-                'Rating | التقييم': ['⭐⭐⭐⭐', '⭐⭐⭐⭐⭐', '⭐⭐⭐']
-            })
-        
-        st.dataframe(st.session_state.available_rides)
+        rides = pd.DataFrame({
+            'Driver | السائق': ['Abdullah M.', 'Fatima S.', 'Mohammed K.'],
+            'Time | الوقت': ['9:00 AM', '9:30 AM', '10:00 AM'],
+            'Price | السعر': ['15 SAR', '20 SAR', '12 SAR'],
+            'Rating | التقييم': ['⭐⭐⭐⭐', '⭐⭐⭐⭐⭐', '⭐⭐⭐']
+        })
+        st.dataframe(rides)
 
     def show_analytics(self):
         st.subheader("Traffic Analytics | تحليلات حركة المرور")
@@ -287,31 +236,29 @@ class TabukEcoMoveOptimizer:
         
         with col1:
             st.markdown("### Weekly Statistics | إحصائيات أسبوعية")
-            if 'weekly_stats' not in st.session_state:
-                st.session_state.weekly_stats = pd.DataFrame({
-                    'Day | اليوم': ['Sun | الأحد', 'Mon | الاثنين', 'Tue | الثلاثاء', 'Wed | الأربعاء', 'Thu | الخميس'],
-                    'Rides | الرحلات': [45, 52, 38, 41, 55],
-                    'CO2 Saved (kg) | ثاني أكسيد الكربون الموفر': [90, 104, 76, 82, 110]
-                })
-            st.dataframe(st.session_state.weekly_stats)
+            stats_data = pd.DataFrame({
+                'Day | اليوم': ['Sun | الأحد', 'Mon | الاثنين', 'Tue | الثلاثاء', 'Wed | الأربعاء', 'Thu | الخميس'],
+                'Rides | الرحلات': [45, 52, 38, 41, 55],
+                'CO2 Saved (kg) | ثاني أكسيد الكربون الموفر': [90, 104, 76, 82, 110]
+            })
+            st.dataframe(stats_data)
             
         with col2:
             st.markdown("### Popular Routes | الطرق الشائعة")
-            if 'popular_routes' not in st.session_state:
-                st.session_state.popular_routes = pd.DataFrame({
-                    'Route | الطريق': [
-                        'Main Gate-Engineering | البوابة الرئيسية-الهندسة',
-                        'Library-Medicine | المكتبة-الطب',
-                        'Housing-Main Gate | السكن-البوابة الرئيسية'
-                    ],
-                    'Usage | الاستخدام': ['35%', '28%', '22%']
-                })
-            st.dataframe(st.session_state.popular_routes)
-            
+            routes_data = pd.DataFrame({
+                'Route | الطريق': [
+                    'Main Gate-Engineering | البوابة الرئيسية-الهندسة',
+                    'Library-Medicine | المكتبة-الطب',
+                    'Housing-Main Gate | السكن-البوابة الرئيسية'
+                ],
+                'Usage | الاستخدام': ['35%', '28%', '22%']
+            })
+            st.dataframe(routes_data)
+
         st.subheader("Traffic Heatmap | خريطة الحرارة لحركة المرور")
         m = folium.Map(location=TABUK_UNIVERSITY_COORDS, zoom_start=16)
         
-        for name, coords in st.session_state.campus_locations.items():
+        for name, coords in CAMPUS_LOCATIONS.items():
             folium.Marker(
                 coords,
                 popup=name,
@@ -320,12 +267,28 @@ class TabukEcoMoveOptimizer:
         
         self.add_traffic_flow(m)
         self.add_congestion_markers(m)
-        
-        if 'analytics_heat_data' not in st.session_state:
-            st.session_state.analytics_heat_data = self.generate_heat_data()
-        
-        plugins.HeatMap(st.session_state.analytics_heat_data).add_to(m)
+        plugins.HeatMap(self.generate_heat_data()).add_to(m)
         st_folium(m, width=None, height=500)
+
+    def main(self):
+        st.title("جامعة تبوك EcoMove Optimizer 🌿")
+        st.markdown("Smart Transportation Solution for Tabuk University Community")
+        
+        page = st.sidebar.selectbox(
+            "التنقل | Navigation",
+            ["Dashboard | لوحة التحكم", 
+             "Route Planner | مخطط الطريق", 
+             "Ride Sharing | مشاركة الركوب", 
+             "Analytics | التحليلات"]
+        )
+        
+        pages = {
+            "Dashboard | لوحة التحكم": self.show_dashboard,
+            "Route Planner | مخطط الطريق": self.show_route_planner,
+            "Ride Sharing | مشاركة الركوب": self.show_ride_sharing,
+            "Analytics | التحليلات": self.show_analytics
+        }
+        pages[page]()
 
 if __name__ == "__main__":
     app = TabukEcoMoveOptimizer()
