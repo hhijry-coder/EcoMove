@@ -376,14 +376,14 @@ class EnhancedVisualization:
         return fig
 
 def create_enhanced_map(center_lat: float, center_lon: float,
-                       ride_share_points: List[RideSharePoint],
-                       traffic_api: TomTomAPI,
-                       radius: int = 3000) -> folium.Map
-"""Create an enhanced map with real-time traffic data"""
+                      ride_share_points: List[RideSharePoint],
+                      traffic_api: TomTomAPI,
+                      radius: int = 3000) -> folium.Map:
+    """Create an enhanced map with real-time traffic data."""
     m = folium.Map(location=[center_lat, center_lon],
-                   zoom_start=15,
-                   tiles="cartodbpositron")
-    
+                  zoom_start=15,
+                  tiles="cartodbpositron")
+
     # Add campus boundary
     folium.Circle(
         location=[center_lat, center_lon],
@@ -392,11 +392,11 @@ def create_enhanced_map(center_lat: float, center_lon: float,
         fill=True,
         opacity=0.2
     ).add_to(m)
-    
+
     # Fetch traffic data
     traffic_flow = traffic_api.get_traffic_flow(center_lat, center_lon, radius)
     traffic_incidents = traffic_api.get_traffic_incidents(center_lat, center_lon, radius)
-    
+
     # Add traffic flow visualization
     if 'flowSegmentData' in traffic_flow:
         for segment in traffic_flow['flowSegmentData']:
@@ -408,7 +408,7 @@ def create_enhanced_map(center_lat: float, center_lon: float,
                     '#FFA500' if congestion < 0.75 else
                     '#00FF00'
                 )
-                
+
                 folium.PolyLine(
                     locations=coordinates,
                     color=color,
@@ -417,7 +417,7 @@ def create_enhanced_map(center_lat: float, center_lon: float,
                     popup=f"Speed: {segment.get('currentSpeed')} km/h<br>"
                           f"Free flow: {segment.get('freeFlowSpeed')} km/h"
                 ).add_to(m)
-    
+
     # Add traffic incidents
     for incident in traffic_incidents:
         coordinates = incident.get('geometry', {}).get('coordinates', [])
@@ -427,7 +427,7 @@ def create_enhanced_map(center_lat: float, center_lon: float,
                 'CONSTRUCTION': 'orange',
                 'CONGESTION': 'yellow'
             }.get(incident.get('type', ''), 'gray')
-            
+
             folium.CircleMarker(
                 location=[coordinates[1], coordinates[0]],
                 radius=8,
@@ -436,7 +436,7 @@ def create_enhanced_map(center_lat: float, center_lon: float,
                 popup=f"Type: {incident.get('type')}<br>"
                       f"Description: {incident.get('properties', {}).get('description', 'N/A')}"
             ).add_to(m)
-    
+
     # Add ride-share points
     for point in ride_share_points:
         demand_percentage = point.current_demand / point.capacity
@@ -445,7 +445,7 @@ def create_enhanced_map(center_lat: float, center_lon: float,
             "orange" if demand_percentage > 0.5 else
             "green"
         )
-        
+
         folium.CircleMarker(
             location=[point.location["lat"], point.location["lon"]],
             radius=10,
@@ -457,7 +457,7 @@ def create_enhanced_map(center_lat: float, center_lon: float,
                 Wait Time: {point.wait_time} min
             """
         ).add_to(m)
-    
+
     return m
 
 def calculate_traffic_score(traffic_data: Dict) -> float:
