@@ -1,13 +1,8 @@
 ![EcoMove Logo](assets/logo.png)
 
 # For online images:
-![EcoMove Logo](https://raw.githubusercontent.com/username/repository/branch/assets/logo.png)
+![EcoMove Logo]([https://raw.githubusercontent.com/username/repository/branch/assets/logo.png](https://github.com/hhijry-coder/EcoMove/blob/main/Leonardo_Phoenix_09_Create_a_professional_and_visually_strikin_0.jpg))
 
-# For multiple images:
-<div align="center">
-  <img src="assets/dashboard.png" alt="Dashboard" width="400"/>
-  <img src="assets/heatmap.png" alt="Traffic Heatmap" width="400"/>
-</div>
 
 # EcoMove Optimizer - Tabuk University - Smart Transportation Team
 
