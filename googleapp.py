@@ -417,12 +417,12 @@ class TabukEcoMoveOptimizer:
                 }
             ]
 
-    @st.cache_data(ttl=300)
+    @st.cache_data(ttl=1800)  # Cache for 30 minutes
     def generate_traffic_timeline(self):
         hours = list(range(6, 24))
         return [random.randint(30, 100) for _ in hours]
 
-    @st.cache_data(ttl=300)
+    @st.cache_data(ttl=1800)  # Cache for 30 minutes
     def generate_heat_data(self):
         heat_data = []
         for loc in st.session_state.campus_locations.values():
@@ -475,9 +475,10 @@ class TabukEcoMoveOptimizer:
     def show_dashboard(self):
         st.subheader("Campus Traffic Map | خريطة حركة المرور في الحرم الجامعي")
         
-        if st.button('Refresh Data | تحديث البيانات'):
-            st.session_state.traffic_data = self.generate_traffic_timeline()
-            st.session_state.heat_data = self.generate_heat_data()
+        # Add manual refresh button with longer interval warning
+        if st.button('Refresh Data | تحديث البيانات (Updates every 30 minutes)'):
+            st.session_state.clear()  # Clear all cached data
+            st.rerun()  # Rerun the app to regenerate data
         
         # Create traffic map with all visualizations
         m = folium.Map(location=TABUK_UNIVERSITY_COORDS, zoom_start=16)
