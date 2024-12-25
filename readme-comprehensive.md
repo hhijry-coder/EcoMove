@@ -150,18 +150,9 @@ streamlit-folium>=0.15.0
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+hhijry-coder/EcoMove is licensed under the GNU Affero General Public License v3.0
 
-## Acknowledgments
-
-- Tabuk University Transportation Department
-- Environmental Sustainability Initiative
-- Student Innovation Program
-- Faculty of Engineering
 
 ## Contact
-
-For support or queries:
-- Email: support@tabukuniversity.edu.sa
 - Website: https://www.tabukuniversity.edu.sa
 - Project Link: https://github.com/yourusername/tabuk-ecomove
