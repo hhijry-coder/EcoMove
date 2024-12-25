@@ -375,6 +375,118 @@ class EnhancedVisualization:
 
         return fig
 
+class TrafficAwareOptimizer:
+    def __init__(self, config: Config, traffic_api: TomTomAPI):
+        self.config = config
+        self.traffic_api = traffic_api
+        self.peak_hours = [(7, 9), (13, 15), (16, 18)]
+        self.buffer_times = {
+            "high_congestion": 15,
+            "medium_congestion": 10,
+            "low_congestion": 5
+        }
+
+    def optimize_schedule(self, rides: List[RideSharePoint]) -> List[RideSharePoint]:
+        optimized_rides = []
+        
+        for ride in rides:
+            hour = ride.next_departure.hour
+            congestion_level = self._get_congestion_level(ride.location)
+            
+            # Adjust departure times during peak hours
+            if self._is_peak_hour(hour):
+                buffer_time = self.buffer_times[congestion_level]
+                new_departure = ride.next_departure + timedelta(minutes=buffer_time)
+                ride.next_departure = new_departure
+            
+            # Adjust capacity based on historical demand
+            if ride.demand_percentage > 0.8:
+                ride.capacity = min(30, int(ride.capacity * 1.5))
+            
+            optimized_rides.append(ride)
+        
+        return optimized_rides
+
+    def suggest_alternative_routes(self, start: Dict[str, float], end: Dict[str, float]) -> List[Dict]:
+        base_route = self.traffic_api.get_route_traffic(
+            start["lat"], start["lon"],
+            end["lat"], end["lon"]
+        )
+        
+        alternatives = []
+        offset_pairs = [(0.001, 0), (-0.001, 0), (0, 0.001), (0, -0.001)]
+        
+        for lat_offset, lon_offset in offset_pairs:
+            alt_route = self.traffic_api.get_route_traffic(
+                start["lat"] + lat_offset, start["lon"] + lon_offset,
+                end["lat"], end["lon"]
+            )
+            
+            if self._is_better_route(alt_route, base_route):
+                alternatives.append(alt_route)
+        
+        return alternatives
+
+    def _get_congestion_level(self, location: Dict[str, float]) -> str:
+        traffic_flow = self.traffic_api.get_traffic_flow(
+            location["lat"],
+            location["lon"],
+            500
+        )
+        congestion = calculate_overall_congestion(traffic_flow)
+        
+        if congestion > 70:
+            return "high_congestion"
+        elif congestion > 40:
+            return "medium_congestion"
+        return "low_congestion"
+
+    def _is_peak_hour(self, hour: int) -> bool:
+        return any(start <= hour <= end for start, end in self.peak_hours)
+
+    def _is_better_route(self, alt_route: Dict, base_route: Dict) -> bool:
+        if not alt_route or not base_route:
+            return False
+            
+        alt_time = alt_route.get('routes', [{}])[0].get('summary', {}).get('travelTimeInSeconds', float('inf'))
+        base_time = base_route.get('routes', [{}])[0].get('summary', {}).get('travelTimeInSeconds', float('inf'))
+        
+        return alt_time < base_time * 0.9
+
+    def generate_dynamic_schedule(self, demand_data: pd.DataFrame) -> List[Dict]:
+        schedule = []
+        
+        for hour in range(24):
+            if self._is_peak_hour(hour):
+                interval = 15  # minutes
+            else:
+                interval = 30
+                
+            for minute in range(0, 60, interval):
+                if self._should_add_ride(hour, minute, demand_data):
+                    schedule.append({
+                        'time': f'{hour:02d}:{minute:02d}',
+                        'capacity': self._calculate_capacity(hour, demand_data),
+                        'route': self._select_optimal_route(hour)
+                    })
+        
+        return schedule
+
+    def _should_add_ride(self, hour: int, minute: int, demand_data: pd.DataFrame) -> bool:
+        hourly_demand = demand_data.groupby(demand_data.index.hour)['passengers'].mean()
+        return hourly_demand.get(hour, 0) > 10
+
+    def _calculate_capacity(self, hour: int, demand_data: pd.DataFrame) -> int:
+        hourly_demand = demand_data.groupby(demand_data.index.hour)['passengers'].mean()
+        base_capacity = int(hourly_demand.get(hour, 15))
+        return min(30, max(15, base_capacity + 5))
+
+    def _select_optimal_route(self, hour: int) -> str:
+        routes = list(self.config.CAMPUS_LOCATIONS.keys())
+        if self._is_peak_hour(hour):
+            return random.choice([r for r in routes if 'College' in r])
+        return random.choice(routes)
+
 def create_enhanced_map(center_lat: float, center_lon: float,
                       ride_share_points: List[RideSharePoint],
                       traffic_api: TomTomAPI,
@@ -649,117 +761,7 @@ def generate_recommendations(historical_rides: pd.DataFrame,
     return recommendations
 
 
-class TrafficAwareOptimizer:
-    def __init__(self, config: Config, traffic_api: TomTomAPI):
-        self.config = config
-        self.traffic_api = traffic_api
-        self.peak_hours = [(7, 9), (13, 15), (16, 18)]
-        self.buffer_times = {
-            "high_congestion": 15,
-            "medium_congestion": 10,
-            "low_congestion": 5
-        }
 
-    def optimize_schedule(self, rides: List[RideSharePoint]) -> List[RideSharePoint]:
-        optimized_rides = []
-        
-        for ride in rides:
-            hour = ride.next_departure.hour
-            congestion_level = self._get_congestion_level(ride.location)
-            
-            # Adjust departure times during peak hours
-            if self._is_peak_hour(hour):
-                buffer_time = self.buffer_times[congestion_level]
-                new_departure = ride.next_departure + timedelta(minutes=buffer_time)
-                ride.next_departure = new_departure
-            
-            # Adjust capacity based on historical demand
-            if ride.demand_percentage > 0.8:
-                ride.capacity = min(30, int(ride.capacity * 1.5))
-            
-            optimized_rides.append(ride)
-        
-        return optimized_rides
-
-    def suggest_alternative_routes(self, start: Dict[str, float], end: Dict[str, float]) -> List[Dict]:
-        base_route = self.traffic_api.get_route_traffic(
-            start["lat"], start["lon"],
-            end["lat"], end["lon"]
-        )
-        
-        alternatives = []
-        offset_pairs = [(0.001, 0), (-0.001, 0), (0, 0.001), (0, -0.001)]
-        
-        for lat_offset, lon_offset in offset_pairs:
-            alt_route = self.traffic_api.get_route_traffic(
-                start["lat"] + lat_offset, start["lon"] + lon_offset,
-                end["lat"], end["lon"]
-            )
-            
-            if self._is_better_route(alt_route, base_route):
-                alternatives.append(alt_route)
-        
-        return alternatives
-
-    def _get_congestion_level(self, location: Dict[str, float]) -> str:
-        traffic_flow = self.traffic_api.get_traffic_flow(
-            location["lat"],
-            location["lon"],
-            500
-        )
-        congestion = calculate_overall_congestion(traffic_flow)
-        
-        if congestion > 70:
-            return "high_congestion"
-        elif congestion > 40:
-            return "medium_congestion"
-        return "low_congestion"
-
-    def _is_peak_hour(self, hour: int) -> bool:
-        return any(start <= hour <= end for start, end in self.peak_hours)
-
-    def _is_better_route(self, alt_route: Dict, base_route: Dict) -> bool:
-        if not alt_route or not base_route:
-            return False
-            
-        alt_time = alt_route.get('routes', [{}])[0].get('summary', {}).get('travelTimeInSeconds', float('inf'))
-        base_time = base_route.get('routes', [{}])[0].get('summary', {}).get('travelTimeInSeconds', float('inf'))
-        
-        return alt_time < base_time * 0.9
-
-    def generate_dynamic_schedule(self, demand_data: pd.DataFrame) -> List[Dict]:
-        schedule = []
-        
-        for hour in range(24):
-            if self._is_peak_hour(hour):
-                interval = 15  # minutes
-            else:
-                interval = 30
-                
-            for minute in range(0, 60, interval):
-                if self._should_add_ride(hour, minute, demand_data):
-                    schedule.append({
-                        'time': f'{hour:02d}:{minute:02d}',
-                        'capacity': self._calculate_capacity(hour, demand_data),
-                        'route': self._select_optimal_route(hour)
-                    })
-        
-        return schedule
-
-    def _should_add_ride(self, hour: int, minute: int, demand_data: pd.DataFrame) -> bool:
-        hourly_demand = demand_data.groupby(demand_data.index.hour)['passengers'].mean()
-        return hourly_demand.get(hour, 0) > 10
-
-    def _calculate_capacity(self, hour: int, demand_data: pd.DataFrame) -> int:
-        hourly_demand = demand_data.groupby(demand_data.index.hour)['passengers'].mean()
-        base_capacity = int(hourly_demand.get(hour, 15))
-        return min(30, max(15, base_capacity + 5))
-
-    def _select_optimal_route(self, hour: int) -> str:
-        routes = list(self.config.CAMPUS_LOCATIONS.keys())
-        if self._is_peak_hour(hour):
-            return random.choice([r for r in routes if 'College' in r])
-        return random.choice(routes)
 
 
 def main():
@@ -773,8 +775,10 @@ def main():
     eco_calculator = EcoImpactCalculator(Config)
     ride_scheduler = RideScheduler(Config)
     visualizer = EnhancedVisualization()
-    optimizer = TrafficAwareOptimizer(Config, traffic_api)
-    optimized_rides = optimizer.optimize_schedule(scheduled_rides)
+    optimizer = TrafficAwareOptimizer(Config, traffic_api)  # Add this line
+
+    # Update scheduled rides with optimized ones
+    ride_scheduler.scheduled_rides = optimizer.optimize_schedule(ride_scheduler.scheduled_rides)
 
     st.sidebar.title("EcoMove - Tabuk University")
     
