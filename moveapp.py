@@ -16,7 +16,7 @@ import calendar
 
 # Enhanced Configuration with Eco Parameters
 class Config:
-    TOMTOM_API_KEY = "YOUR_TOMTOM_API_KEY"
+    TOMTOM_API_KEY = "eXu4hsMGOsruJNBtXirN0pkU6I3DhNo2"
     DEFAULT_LOCATION = {"lat": 28.3835, "lon": 36.4868}  # Tabuk University
     RADIUS = 3000  # meters
     UPDATE_INTERVAL = 300  # seconds
