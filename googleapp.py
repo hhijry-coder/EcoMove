@@ -56,7 +56,8 @@ CONGESTION_POINTS = [
 
 class TabukEcoMoveOptimizer:
     def __init__(self):
-        pass
+        if 'last_update' not in st.session_state:
+            self.initialize_dashboard_data()
 
     def add_traffic_flow(self, m):
         colors = {"low": "#00ff00", "medium": "#ffa500", "high": "#ff0000"}
@@ -101,6 +102,12 @@ class TabukEcoMoveOptimizer:
     def show_dashboard(self):
         st.subheader("Campus Traffic Map | خريطة حركة المرور في الحرم الجامعي")
         
+        if 'last_update' not in st.session_state:
+            self.initialize_dashboard_data()
+            
+        if st.button('🔄 Refresh Data | تحديث البيانات'):
+            self.initialize_dashboard_data()
+            
         m = folium.Map(location=TABUK_UNIVERSITY_COORDS, zoom_start=16)
         
         for name, coords in CAMPUS_LOCATIONS.items():
@@ -112,15 +119,28 @@ class TabukEcoMoveOptimizer:
         
         self.add_traffic_flow(m)
         self.add_congestion_markers(m)
-        plugins.HeatMap(self.generate_heat_data(), min_opacity=0.4).add_to(m)
+        plugins.HeatMap(st.session_state.heat_data, min_opacity=0.4).add_to(m)
         st_folium(m, width=None, height=500)
         
         st.subheader("Traffic Density Timeline | جدول زمني لكثافة المرور")
-        self.show_traffic_timeline()
+        st.line_chart(st.session_state.traffic_chart.set_index('Hour'))
         
         st.subheader("Quick Stats | إحصائيات سريعة")
         col1, col2, col3, col4 = st.columns(4)
-        metrics = {
+        metrics = st.session_state.metrics
+
+    def initialize_dashboard_data(self):
+        st.session_state.heat_data = self.generate_heat_data()
+        st.session_state.last_update = datetime.now()
+        
+        hours = list(range(6, 24))
+        traffic_data = [random.randint(30, 100) for _ in hours]
+        st.session_state.traffic_chart = pd.DataFrame({
+            'Hour': hours,
+            'Traffic Density': traffic_data
+        })
+        
+        st.session_state.metrics = {
             "Active Rides | رحلات نشطة": [random.randint(10, 50), "rides"],
             "CO2 Saved | ثاني أكسيد الكربون الموفر": [random.randint(100, 500), "kg"],
             "Temperature | درجة الحرارة": [random.randint(25, 45), "°C"],
