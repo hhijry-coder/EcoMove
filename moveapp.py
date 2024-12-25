@@ -1010,14 +1010,7 @@ def main():
         weekly_data = analyze_weekly_trends(historical_rides, traffic_api)
         st.line_chart(weekly_data)
 
-        st.subheader("Optimization Recommendations")
-        recommendations = generate_recommendations(
-            historical_rides,
-            traffic_correlation,
-            traffic_api
-        )
-        for rec in recommendations:
-            st.info(rec)
+
 
 if __name__ == "__main__":
     main()
