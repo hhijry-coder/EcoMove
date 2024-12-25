@@ -8,6 +8,7 @@ import random
 from PIL import Image
 import numpy as np
 from folium import plugins
+from streamlit_folium import st_folium
 
 from dotenv import load_dotenv
 import os
