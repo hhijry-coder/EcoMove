@@ -1,7 +1,6 @@
-![EcoMove Logo](assets/logo.png)
+![EcoMove Optimizer](assets/logo.png)
 
-# For online images:
-![EcoMove Logo]([https://raw.githubusercontent.com/username/repository/branch/assets/logo.png](https://github.com/hhijry-coder/EcoMove/blob/main/Leonardo_Phoenix_09_Create_a_professional_and_visually_strikin_0.jpg))
+# EcoMove Optimizer - Tabuk University
 
 
 # EcoMove Optimizer - Tabuk University - Smart Transportation Team
