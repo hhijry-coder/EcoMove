@@ -9,7 +9,11 @@ from PIL import Image
 import numpy as np
 from folium import plugins
 
-GOOGLE_MAPS_API_KEY = "AIzaSyAuyGwowFvbkrhbHqewP2PsBPT2o8fXBuU"
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+GOOGLE_MAPS_API_KEY = os.getenv('GOOGLE_MAPS_API_KEY')
 TABUK_UNIVERSITY_COORDS = [28.3835, 36.4868]
 
 class TabukEcoMoveOptimizer:
