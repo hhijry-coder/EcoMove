@@ -62,7 +62,314 @@ class Config:
         "13:00", "13:30", "14:00", "14:30",
         "16:00", "16:30", "17:00", "17:30"
     ]
+class TomTomAPI:
+    def __init__(self, api_key: str):
+        self.api_key = api_key
+        self.base_url = "https://api.tomtom.com/traffic/services/4"
+        
+    def get_traffic_flow(self, lat: float, lon: float, radius: int) -> Dict:
+        """Fetch traffic flow data from TomTom API"""
+        endpoint = f"{self.base_url}/flowSegmentData/absolute/10/json"
+        params = {
+            "key": self.api_key,
+            "point": f"{lat},{lon}",
+            "radius": radius,
+            "unit": "KMPH"
+        }
+        response = requests.get(endpoint, params=params)
+        return response.json()
+    
+    def get_traffic_incidents(self, lat: float, lon: float, radius: int) -> List[Dict]:
+        """Fetch traffic incidents from TomTom API"""
+        endpoint = f"{self.base_url}/incidentDetails/s3/json"
+        params = {
+            "key": self.api_key,
+            "bbox": self._create_bbox(lat, lon, radius),
+            "fields": "{incidents{type,geometry,properties}}"
+        }
+        response = requests.get(endpoint, params=params)
+        return response.json().get('incidents', [])
+    
+    def get_route_traffic(self, start_lat: float, start_lon: float, 
+                         end_lat: float, end_lon: float) -> Dict:
+        """Get traffic data along a specific route"""
+        endpoint = "https://api.tomtom.com/routing/1/calculateRoute/json"
+        params = {
+            "key": self.api_key,
+            "traffic": "true",
+            "travelMode": "car",
+            "waypoint0": f"{start_lat},{start_lon}",
+            "waypoint1": f"{end_lat},{end_lon}"
+        }
+        response = requests.get(endpoint, params=params)
+        return response.json()
+    
+    @staticmethod
+    def _create_bbox(lat: float, lon: float, radius: int) -> str:
+        """Create bounding box string for API requests"""
+        # Convert radius from meters to degrees (approximate)
+        deg_radius = radius / 111000
+        return f"{lon-deg_radius},{lat-deg_radius},{lon+deg_radius},{lat+deg_radius}"
 
+def create_enhanced_map(center_lat: float, center_lon: float,
+                       ride_share_points: List[RideSharePoint],
+                       traffic_api: TomTomAPI,
+                       radius: int = 3000) -> folium.Map:
+    """Create an enhanced map with real-time traffic data"""
+    # Initialize map
+    m = folium.Map(location=[center_lat, center_lon],
+                   zoom_start=15,
+                   tiles="cartodbpositron")
+    
+    # Add campus boundary
+    folium.Circle(
+        location=[center_lat, center_lon],
+        radius=radius,
+        color="#2E7D32",
+        fill=True,
+        opacity=0.2
+    ).add_to(m)
+    
+    # Fetch traffic data
+    traffic_flow = traffic_api.get_traffic_flow(center_lat, center_lon, radius)
+    traffic_incidents = traffic_api.get_traffic_incidents(center_lat, center_lon, radius)
+    
+    # Add traffic flow visualization
+    if 'flowSegmentData' in traffic_flow:
+        for segment in traffic_flow['flowSegmentData']:
+            coordinates = segment.get('coordinates', {})
+            if coordinates:
+                # Color based on congestion level
+                congestion = segment.get('currentSpeed', 0) / segment.get('freeFlowSpeed', 1)
+                color = (
+                    '#FF0000' if congestion < 0.5 else  # Heavy congestion
+                    '#FFA500' if congestion < 0.75 else  # Moderate congestion
+                    '#00FF00'  # Free flow
+                )
+                
+                folium.PolyLine(
+                    locations=coordinates,
+                    color=color,
+                    weight=5,
+                    opacity=0.7,
+                    popup=f"Speed: {segment.get('currentSpeed')} km/h<br>"
+                          f"Free flow: {segment.get('freeFlowSpeed')} km/h"
+                ).add_to(m)
+    
+    # Add traffic incidents
+    for incident in traffic_incidents:
+        coordinates = incident.get('geometry', {}).get('coordinates', [])
+        if coordinates:
+            icon_color = {
+                'ACCIDENT': 'red',
+                'CONSTRUCTION': 'orange',
+                'CONGESTION': 'yellow'
+            }.get(incident.get('type', ''), 'gray')
+            
+            folium.CircleMarker(
+                location=[coordinates[1], coordinates[0]],
+                radius=8,
+                color=icon_color,
+                fill=True,
+                popup=f"Type: {incident.get('type')}<br>"
+                      f"Description: {incident.get('properties', {}).get('description', 'N/A')}"
+            ).add_to(m)
+    
+    # Add ride-share points with enhanced information
+    for point in ride_share_points:
+        demand_percentage = point.current_demand / point.capacity
+        color = (
+            "red" if demand_percentage > 0.8 else
+            "orange" if demand_percentage > 0.5 else
+            "green"
+        )
+        
+        # Get traffic conditions near the point
+        point_traffic = traffic_api.get_traffic_flow(
+            point.location["lat"],
+            point.location["lon"],
+            500  # Smaller radius for point-specific traffic
+        )
+        
+        # Calculate traffic score
+        traffic_score = calculate_traffic_score(point_traffic)
+        
+        # Create detailed popup content
+        popup_html = f"""
+            <div style='width: 200px'>
+                <h4>{point.name}</h4>
+                <b>Status</b>
+                <ul>
+                    <li>Capacity: {point.current_demand}/{point.capacity}</li>
+                    <li>Wait Time: {point.wait_time} min</li>
+                    <li>Traffic Score: {traffic_score}/10</li>
+                </ul>
+                <b>Routes</b>
+                <ul>
+                    {''.join(f'<li>{route}</li>' for route in point.routes)}
+                </ul>
+                <b>Amenities</b>
+                <ul>
+                    {''.join(f'<li>{amenity}</li>' for amenity in point.amenities)}
+                </ul>
+            </div>
+        """
+        
+        folium.CircleMarker(
+            location=[point.location["lat"], point.location["lon"]],
+            radius=10,
+            color=color,
+            fill=True,
+            popup=folium.Popup(popup_html, max_width=300)
+        ).add_to(m)
+    
+    # Add recommended pickup/dropoff points based on traffic
+    recommended_points = find_recommended_points(
+        center_lat, center_lon,
+        traffic_flow,
+        traffic_incidents,
+        existing_points=ride_share_points
+    )
+    
+    for point in recommended_points:
+        folium.CircleMarker(
+            location=[point['lat'], point['lon']],
+            radius=8,
+            color='blue',
+            fill=True,
+            popup=f"Recommended Point<br>Score: {point['score']}<br>Reason: {point['reason']}"
+        ).add_to(m)
+    
+    return m
+
+def calculate_traffic_score(traffic_data: Dict) -> float:
+    """Calculate traffic score (0-10) based on traffic conditions"""
+    if 'flowSegmentData' not in traffic_data:
+        return 5.0
+    
+    segments = traffic_data['flowSegmentData']
+    if not segments:
+        return 5.0
+    
+    scores = []
+    for segment in segments:
+        current_speed = segment.get('currentSpeed', 0)
+        free_flow_speed = segment.get('freeFlowSpeed', 1)
+        
+        # Calculate score based on speed ratio
+        ratio = current_speed / free_flow_speed if free_flow_speed > 0 else 0
+        score = min(10, ratio * 10)
+        scores.append(score)
+    
+    return sum(scores) / len(scores)
+
+def find_recommended_points(center_lat: float, center_lon: float,
+                          traffic_flow: Dict,
+                          traffic_incidents: List[Dict],
+                          existing_points: List[RideSharePoint],
+                          radius: int = 3000) -> List[Dict]:
+    """Find recommended new ride-share points based on traffic conditions"""
+    recommended = []
+    
+    # Convert radius to grid
+    grid_size = 10
+    lat_step = (radius / 111000) / grid_size
+    lon_step = lat_step / np.cos(np.radians(center_lat))
+    
+    # Create grid of potential points
+    for i in range(-grid_size, grid_size + 1):
+        for j in range(-grid_size, grid_size + 1):
+            lat = center_lat + (i * lat_step)
+            lon = center_lon + (j * lon_step)
+            
+            # Skip if too close to existing points
+            if any(distance_between(lat, lon, p.location["lat"], p.location["lon"]) < 200 
+                   for p in existing_points):
+                continue
+            
+            # Calculate point score based on various factors
+            score = calculate_point_score(
+                lat, lon,
+                traffic_flow,
+                traffic_incidents,
+                existing_points
+            )
+            
+            if score > 7.0:  # Only recommend high-scoring points
+                recommended.append({
+                    'lat': lat,
+                    'lon': lon,
+                    'score': score,
+                    'reason': determine_recommendation_reason(score, traffic_flow, traffic_incidents)
+                })
+    
+    # Sort by score and return top 5
+    return sorted(recommended, key=lambda x: x['score'], reverse=True)[:5]
+
+def calculate_point_score(lat: float, lon: float,
+                         traffic_flow: Dict,
+                         traffic_incidents: List[Dict],
+                         existing_points: List[RideSharePoint]) -> float:
+    """Calculate score for a potential ride-share point"""
+    score = 7.0  # Base score
+    
+    # Check traffic flow
+    for segment in traffic_flow.get('flowSegmentData', []):
+        if 'coordinates' in segment:
+            dist = min(distance_between(lat, lon, coord[1], coord[0]) 
+                      for coord in segment['coordinates'])
+            if dist < 100:  # Close to this traffic segment
+                congestion = segment.get('currentSpeed', 0) / segment.get('freeFlowSpeed', 1)
+                score += (1 - congestion) * 2  # Higher score for less congestion
+    
+    # Check incidents
+    for incident in traffic_incidents:
+        coords = incident.get('geometry', {}).get('coordinates', [])
+        if coords:
+            dist = distance_between(lat, lon, coords[1], coords[0])
+            if dist < 300:  # Incident nearby
+                score -= 1  # Reduce score for nearby incidents
+    
+    # Check distribution of existing points
+    distances = [distance_between(lat, lon, p.location["lat"], p.location["lon"]) 
+                for p in existing_points]
+    if distances:
+        avg_distance = sum(distances) / len(distances)
+        score += min(2, avg_distance / 1000)  # Bonus for good spacing
+    
+    return min(10, max(0, score))
+
+def determine_recommendation_reason(score: float,
+                                 traffic_flow: Dict,
+                                 traffic_incidents: List[Dict]) -> str:
+    """Determine the primary reason for recommending a point"""
+    reasons = []
+    
+    if score > 8:
+        reasons.append("Optimal traffic conditions")
+    if score > 7:
+        reasons.append("Good spacing from existing points")
+    if not any(incident['type'] == 'CONGESTION' 
+               for incident in traffic_incidents):
+        reasons.append("Low congestion area")
+    
+    return " & ".join(reasons) if reasons else "Generally favorable conditions"
+
+def distance_between(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Calculate distance between two points in meters"""
+    R = 6371000  # Earth radius in meters
+    phi1 = np.radians(lat1)
+    phi2 = np.radians(lat2)
+    delta_phi = np.radians(lat2 - lat1)
+    delta_lambda = np.radians(lon2 - lon1)
+    
+    a = (np.sin(delta_phi/2) * np.sin(delta_phi/2) +
+         np.cos(phi1) * np.cos(phi2) *
+         np.sin(delta_lambda/2) * np.sin(delta_lambda/2))
+    c = 2 * np.arctan2(np.sqrt(a), np.sqrt(1-a))
+    
+    return R * c
+    
 @dataclass
 class TrafficIncident:
     id: str
@@ -333,11 +640,26 @@ def main():
         initial_sidebar_state="expanded"
     )
 
+    # Initialize components
+    traffic_api = TomTomAPI(Config.TOMTOM_API_KEY)
     eco_calculator = EcoImpactCalculator(Config)
     ride_scheduler = RideScheduler(Config)
     visualizer = EnhancedVisualization()
 
     st.sidebar.title("EcoMove - Tabuk University")
+    
+    # Add refresh interval selector
+    refresh_interval = st.sidebar.selectbox(
+        "Traffic Data Refresh Interval",
+        [60, 180, 300, 600],
+        format_func=lambda x: f"{x//60} minutes"
+    )
+
+    # Add traffic filters
+    show_congestion = st.sidebar.checkbox("Show Congestion", value=True)
+    show_incidents = st.sidebar.checkbox("Show Incidents", value=True)
+    show_recommendations = st.sidebar.checkbox("Show Recommended Points", value=True)
+
     page = st.sidebar.selectbox(
         "Navigation",
         ["Dashboard", "Schedule Analysis", "Environmental Impact", "Historical Analysis"]
@@ -346,30 +668,75 @@ def main():
     if page == "Dashboard":
         st.title("EcoMove Dashboard")
         
-        impact_data = eco_calculator.calculate_comprehensive_impact(ride_scheduler.scheduled_rides)
+        # Add real-time traffic status
+        traffic_flow = traffic_api.get_traffic_flow(
+            Config.DEFAULT_LOCATION["lat"],
+            Config.DEFAULT_LOCATION["lon"],
+            Config.RADIUS
+        )
         
-        col1, col2, col3, col4 = st.columns(4)
+        incidents = traffic_api.get_traffic_incidents(
+            Config.DEFAULT_LOCATION["lat"],
+            Config.DEFAULT_LOCATION["lon"],
+            Config.RADIUS
+        )
+        
+        # Traffic status indicators
+        col1, col2, col3 = st.columns(3)
         with col1:
-            st.metric("CO₂ Saved", f"{impact_data['net_emissions_saved']:.1f} kg")
+            congestion_level = calculate_overall_congestion(traffic_flow)
+            st.metric(
+                "Traffic Congestion",
+                f"{congestion_level:.1f}%",
+                delta=congestion_level - 50
+            )
         with col2:
-            st.metric("Calories Burned", f"{impact_data['calories_burned']:.0f}")
+            active_incidents = len(incidents)
+            st.metric("Active Incidents", active_incidents)
         with col3:
-            st.metric("Trees Equivalent", f"{impact_data['trees_equivalent']:.1f}")
-        with col4:
-            st.metric("Active Rides", len(ride_scheduler.scheduled_rides))
+            average_speed = calculate_average_speed(traffic_flow)
+            st.metric(
+                "Average Speed",
+                f"{average_speed:.1f} km/h",
+                delta=average_speed - 40
+            )
 
+        # Create enhanced map with traffic data
+        st.subheader("Real-time Traffic Map")
+        enhanced_map = create_enhanced_map(
+            Config.DEFAULT_LOCATION["lat"],
+            Config.DEFAULT_LOCATION["lon"],
+            ride_scheduler.scheduled_rides,
+            traffic_api,
+            Config.RADIUS
+        )
+        
+        # Add layer controls if requested
+        if show_congestion or show_incidents or show_recommendations:
+            folium.LayerControl().add_to(enhanced_map)
+        
+        # Display map
+        folium_static(enhanced_map)
+
+        # Traffic incidents table
+        if show_incidents and incidents:
+            st.subheader("Current Traffic Incidents")
+            incidents_df = pd.DataFrame([
+                {
+                    'Type': inc.get('type', 'Unknown'),
+                    'Severity': inc.get('properties', {}).get('severity', 'Unknown'),
+                    'Description': inc.get('properties', {}).get('description', 'No description'),
+                    'Location': get_incident_location(inc)
+                }
+                for inc in incidents
+            ])
+            st.dataframe(incidents_df)
+
+        impact_data = eco_calculator.calculate_comprehensive_impact(ride_scheduler.scheduled_rides)
         st.plotly_chart(
             visualizer.create_impact_dashboard(impact_data),
             use_container_width=True
         )
-
-        st.subheader("Campus Map")
-        m = create_map(
-            Config.DEFAULT_LOCATION["lat"],
-            Config.DEFAULT_LOCATION["lon"],
-            ride_scheduler.scheduled_rides
-        )
-        folium_static(m)
 
     elif page == "Schedule Analysis":
         st.title("Ride Schedule Analysis")
@@ -380,19 +747,80 @@ def main():
             use_container_width=True
         )
 
+        # Add real-time traffic impact on schedules
+        st.subheader("Traffic Impact on Schedules")
+        traffic_impact = calculate_traffic_impact(
+            ride_scheduler.scheduled_rides,
+            traffic_api
+        )
+        
+        impact_cols = st.columns(3)
+        with impact_cols[0]:
+            st.metric(
+                "Schedule Reliability",
+                f"{traffic_impact['reliability']:.1f}%",
+                delta=traffic_impact['reliability_change']
+            )
+        with impact_cols[1]:
+            st.metric(
+                "Average Delay",
+                f"{traffic_impact['avg_delay']:.1f} min",
+                delta=-traffic_impact['avg_delay'],
+                delta_color="inverse"
+            )
+        with impact_cols[2]:
+            st.metric(
+                "Routes Affected",
+                traffic_impact['affected_routes'],
+                delta=-traffic_impact['affected_routes'],
+                delta_color="inverse"
+            )
+
         st.subheader("Today's Schedule")
         schedule_df = pd.DataFrame([{
             'Departure': ride.next_departure.strftime('%H:%M'),
             'Location': ride.name,
             'Capacity': f"{ride.current_demand}/{ride.capacity}",
-            'Wait Time': f"{ride.wait_time} min"
+            'Wait Time': f"{ride.wait_time} min",
+            'Traffic Status': get_traffic_status(ride, traffic_api),
+            'Recommended Action': get_schedule_recommendation(ride, traffic_impact)
         } for ride in ride_scheduler.scheduled_rides])
         st.dataframe(schedule_df)
 
     elif page == "Environmental Impact":
         st.title("Environmental Impact Analysis")
         
+        # Historical environmental data
         historical_data = eco_calculator.historical_data
+        
+        # Add traffic-based environmental impact
+        traffic_eco_impact = calculate_traffic_eco_impact(traffic_api, Config.DEFAULT_LOCATION)
+        
+        impact_cols = st.columns(3)
+        with impact_cols[0]:
+            st.metric(
+                "Additional CO₂ from Traffic",
+                f"{traffic_eco_impact['additional_co2']:.1f} kg",
+                delta=-traffic_eco_impact['additional_co2'],
+                delta_color="inverse"
+            )
+        with impact_cols[1]:
+            st.metric(
+                "Fuel Wastage",
+                f"{traffic_eco_impact['fuel_waste']:.1f} L",
+                delta=-traffic_eco_impact['fuel_waste'],
+                delta_color="inverse"
+            )
+        with impact_cols[2]:
+            st.metric(
+                "Time Lost in Traffic",
+                f"{traffic_eco_impact['time_lost']:.0f} hours",
+                delta=-traffic_eco_impact['time_lost'],
+                delta_color="inverse"
+            )
+
+        # Environmental impact trends
+        st.subheader("Impact Trends")
         fig = px.line(
             historical_data,
             x='date',
@@ -401,17 +829,21 @@ def main():
         )
         st.plotly_chart(fig, use_container_width=True)
 
-        monthly_avg = historical_data.set_index('date').resample('M').mean()
-        st.subheader("Monthly Averages")
+        # Monthly averages with traffic correlation
+        st.subheader("Monthly Analysis")
+        monthly_avg = calculate_monthly_averages(historical_data, traffic_api)
         st.line_chart(monthly_avg)
 
+        # Impact breakdown
         st.subheader("Impact Breakdown")
         metrics_df = pd.DataFrame({
-            'Metric': ['Total CO₂ Saved', 'Trees Equivalent', 'Calories Burned'],
+            'Metric': ['Total CO₂ Saved', 'Trees Equivalent', 'Calories Burned',
+                      'Traffic-Related Savings'],
             'Value': [
                 f"{historical_data['co2_saved'].sum():.1f} kg",
                 f"{historical_data['trees_equivalent'].sum():.1f} trees",
-                f"{historical_data['calories_burned'].sum():.0f} calories"
+                f"{historical_data['calories_burned'].sum():.0f} calories",
+                f"{calculate_traffic_savings(traffic_api):.1f} kg CO₂"
             ]
         })
         st.table(metrics_df)
@@ -419,7 +851,35 @@ def main():
     else:  # Historical Analysis
         st.title("Historical Analysis")
         
+        # Get historical ride data
         historical_rides = ride_scheduler.historical_rides
+        
+        # Add traffic correlation analysis
+        traffic_correlation = analyze_traffic_correlation(historical_rides, traffic_api)
+        
+        st.subheader("Traffic Impact Analysis")
+        correlation_cols = st.columns(3)
+        with correlation_cols[0]:
+            st.metric(
+                "Traffic-Ride Correlation",
+                f"{traffic_correlation['correlation']:.2f}",
+                delta=traffic_correlation['correlation_change']
+            )
+        with correlation_cols[1]:
+            st.metric(
+                "Peak Hour Impact",
+                f"{traffic_correlation['peak_impact']:.1f}%",
+                delta=-traffic_correlation['peak_impact'],
+                delta_color="inverse"
+            )
+        with correlation_cols[2]:
+            st.metric(
+                "Off-Peak Efficiency",
+                f"{traffic_correlation['off_peak_efficiency']:.1f}%",
+                delta=traffic_correlation['efficiency_change']
+            )
+
+        # Ride patterns visualization
         st.subheader("Ride Patterns")
         fig = px.scatter(
             historical_rides,
@@ -431,12 +891,12 @@ def main():
         )
         st.plotly_chart(fig, use_container_width=True)
 
-        st.subheader("Hourly Usage Patterns")
-        hourly_patterns = historical_rides.groupby(
-            historical_rides['datetime'].dt.hour
-        )['passengers'].mean()
-        st.bar_chart(hourly_patterns)
+        # Hourly analysis with traffic overlay
+        st.subheader("Hourly Analysis")
+        hourly_analysis = create_hourly_analysis(historical_rides, traffic_api)
+        st.plotly_chart(hourly_analysis, use_container_width=True)
 
+        # Route type distribution
         st.subheader("Route Type Distribution")
         route_dist = historical_rides['route_type'].value_counts()
         fig = px.pie(
@@ -446,9 +906,20 @@ def main():
         )
         st.plotly_chart(fig, use_container_width=True)
 
+        # Weekly trends with traffic correlation
         st.subheader("Weekly Trends")
-        weekly_data = historical_rides.set_index('datetime').resample('W')['passengers'].mean()
+        weekly_data = analyze_weekly_trends(historical_rides, traffic_api)
         st.line_chart(weekly_data)
+
+        # Recommendations based on historical analysis
+        st.subheader("Optimization Recommendations")
+        recommendations = generate_recommendations(
+            historical_rides,
+            traffic_correlation,
+            traffic_api
+        )
+        for rec in recommendations:
+            st.info(rec)
 
 if __name__ == "__main__":
     main()
