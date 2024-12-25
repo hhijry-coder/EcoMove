@@ -146,6 +146,44 @@ class TabukEcoMoveOptimizer:
             "Temperature | درجة الحرارة": [random.randint(25, 45), "°C"],
             "Air Quality | جودة الهواء": [random.randint(50, 150), "AQI"]
         }
+
+    def show_dashboard(self):
+        st.subheader("Campus Traffic Map | خريطة حركة المرور في الحرم الجامعي")
+        
+        if 'last_update' not in st.session_state:
+            self.initialize_dashboard_data()
+            
+        if st.button('🔄 Refresh Data | تحديث البيانات'):
+            self.initialize_dashboard_data()
+            
+        m = folium.Map(location=TABUK_UNIVERSITY_COORDS, zoom_start=16)
+        
+        for name, coords in CAMPUS_LOCATIONS.items():
+            folium.Marker(
+                coords,
+                popup=name,
+                icon=folium.Icon(color='blue', icon='info-sign')
+            ).add_to(m)
+        
+        self.add_traffic_flow(m)
+        self.add_congestion_markers(m)
+        plugins.HeatMap(st.session_state.heat_data, min_opacity=0.4).add_to(m)
+        st_folium(m, width=None, height=500)
+        
+        st.subheader("Traffic Density Timeline | جدول زمني لكثافة المرور")
+        st.line_chart(st.session_state.traffic_chart.set_index('Hour'))
+        
+        st.subheader("Quick Stats | إحصائيات سريعة")
+        col1, col2, col3, col4 = st.columns(4)
+        
+        for (label, (value, unit)), col in zip(st.session_state.metrics.items(), [col1, col2, col3, col4]):
+            with col:
+                st.metric(label=label, value=f"{value} {unit}")
+            "Active Rides | رحلات نشطة": [random.randint(10, 50), "rides"],
+            "CO2 Saved | ثاني أكسيد الكربون الموفر": [random.randint(100, 500), "kg"],
+            "Temperature | درجة الحرارة": [random.randint(25, 45), "°C"],
+            "Air Quality | جودة الهواء": [random.randint(50, 150), "AQI"]
+        }
         
         for (label, (value, unit)), col in zip(metrics.items(), [col1, col2, col3, col4]):
             with col:
