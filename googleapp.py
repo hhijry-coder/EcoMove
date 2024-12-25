@@ -168,7 +168,7 @@ class TabukEcoMoveOptimizer:
             with col:
                 st.metric(label=label, value=f"{value} {unit}")
 
-[Previous code remains the same until show_dashboard method...]
+
 
     def show_route_planner(self):
         st.subheader("Route Planner | مخطط الطريق")
