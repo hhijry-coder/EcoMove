@@ -787,7 +787,7 @@ def main():
             'Wait Time': f"{ride.wait_time} min",
             'Traffic Status': get_traffic_status(ride, traffic_api),
             'Recommended Action': get_schedule_recommendation(ride, traffic_impact)
-        } } for ride in ride_scheduler.scheduled_rides])
+        }  for ride in ride_scheduler.scheduled_rides])
         st.dataframe(schedule_df)
 
     elif page == "Environmental Impact":
