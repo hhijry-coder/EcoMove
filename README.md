@@ -92,4 +92,5 @@ ecomove-optimizer/
 
 ## License
 
-GPA 3
+hhijry-coder/EcoMove is licensed under the
+GNU Affero General Public License v3.0
