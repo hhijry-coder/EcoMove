@@ -50,15 +50,22 @@ class TabukEcoMoveOptimizer:
         pages[page]()
 
     def show_dashboard(self):
-        col1, col2 = st.columns(2)
+        st.subheader("Campus Traffic Map | خريطة حركة المرور في الحرم الجامعي")
+        self.display_traffic_map()
         
-        with col1:
-            st.subheader("Campus Traffic Map | خريطة حركة المرور في الحرم الجامعي")
-            self.display_traffic_map()
-            
-        with col2:
-            st.subheader("Quick Stats | إحصائيات سريعة")
-            self.display_quick_stats()
+        st.subheader("Quick Stats | إحصائيات سريعة")
+        col1, col2, col3, col4 = st.columns(4)
+        
+        stats = {
+            "Active Rides | رحلات نشطة": [random.randint(10, 50), "rides"],
+            "CO2 Saved | ثاني أكسيد الكربون الموفر": [random.randint(100, 500), "kg"],
+            "Temperature | درجة الحرارة": [random.randint(25, 45), "°C"],
+            "Air Quality | جودة الهواء": [random.randint(50, 150), "AQI"]
+        }
+        
+        for (label, (value, unit)), col in zip(stats.items(), [col1, col2, col3, col4]):
+            with col:
+                st.metric(label=label, value=f"{value} {unit}")
         
         st.subheader("Notifications | إشعارات")
         self.display_notifications()
@@ -215,8 +222,33 @@ class TabukEcoMoveOptimizer:
 
     def display_heatmap(self):
         st.subheader("Campus Traffic Heatmap | خريطة الحرارة لحركة المرور في الحرم الجامعي")
-        data = np.random.rand(10, 10)
-        st.image(Image.fromarray(np.uint8(data * 255)), caption="Traffic Density | كثافة حركة المرور")
+        
+        # Create a map centered on Tabuk University
+        m = folium.Map(location=TABUK_UNIVERSITY_COORDS, zoom_start=16)
+        
+        # Generate sample heatmap data around campus locations
+        heat_data = []
+        for loc in self.campus_locations.values():
+            # Generate multiple points around each location with varying weights
+            for _ in range(20):
+                lat = loc[0] + random.uniform(-0.001, 0.001)
+                lon = loc[1] + random.uniform(-0.001, 0.001)
+                weight = random.uniform(0.2, 1.0)
+                heat_data.append([lat, lon, weight])
+        
+        # Add the heatmap layer
+        from folium import plugins
+        plugins.HeatMap(heat_data).add_to(m)
+        
+        # Add markers for campus locations
+        for name, coords in self.campus_locations.items():
+            folium.Marker(
+                coords,
+                popup=name,
+                icon=folium.Icon(color='red', icon='info-sign')
+            ).add_to(m)
+            
+        folium_static(m)
 
     def display_usage_stats(self):
         col1, col2 = st.columns(2)
