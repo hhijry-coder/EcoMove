@@ -142,16 +142,30 @@ class TabukEcoMoveOptimizer:
     def show_route_planner(self):
         st.subheader("Route Planner | مخطط الطريق")
         
+        if 'route_start' not in st.session_state:
+            st.session_state.route_start = list(CAMPUS_LOCATIONS.keys())[0]
+            st.session_state.route_end = list(CAMPUS_LOCATIONS.keys())[1]
+            st.session_state.show_route = False
+        
         col1, col2 = st.columns(2)
         with col1:
-            start = st.selectbox("Start Location | موقع البداية", list(CAMPUS_LOCATIONS.keys()))
-            end = st.selectbox("End Location | موقع النهاية", list(CAMPUS_LOCATIONS.keys()))
+            start = st.selectbox("Start Location | موقع البداية", 
+                               list(CAMPUS_LOCATIONS.keys()),
+                               key='route_start')
+            end = st.selectbox("End Location | موقع النهاية", 
+                             list(CAMPUS_LOCATIONS.keys()),
+                             key='route_end')
             
             if st.button("Find Route | ابحث عن الطريق"):
-                self.calculate_route(start, end)
+                st.session_state.show_route = True
+                st.session_state.route_start = start
+                st.session_state.route_end = end
         
         with col2:
             self.display_route_details()
+            
+        if st.session_state.show_route:
+            self.calculate_route(st.session_state.route_start, st.session_state.route_end)
 
     def calculate_route(self, start, end):
         if start and end and start != end:
