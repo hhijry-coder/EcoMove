@@ -14,12 +14,43 @@ import json
 from collections import defaultdict
 import calendar
 
-# Enhanced Configuration with Eco Parameters
+# Enhanced Configuration with all required attributes
 class Config:
     TOMTOM_API_KEY = "eXu4hsMGOsruJNBtXirN0pkU6I3DhNo2"
     DEFAULT_LOCATION = {"lat": 28.3835, "lon": 36.4868}  # Tabuk University
     RADIUS = 3000  # meters
     UPDATE_INTERVAL = 300  # seconds
+    
+    # Campus Locations
+    CAMPUS_LOCATIONS = {
+        "Main Gate": {"lat": 28.3835, "lon": 36.4868},
+        "College of Engineering": {"lat": 28.3840, "lon": 36.4875},
+        "College of Science": {"lat": 28.3830, "lon": 36.4860},
+        "University Hospital": {"lat": 28.3845, "lon": 36.4880},
+        "Student Center": {"lat": 28.3825, "lon": 36.4870}
+    }
+    
+    # Ride-Share Points
+    RIDE_SHARE_POINTS = {
+        "West Campus Hub": {
+            "location": {"lat": 28.3840, "lon": 36.4875},
+            "capacity": 15,
+            "amenities": ["Covered Waiting Area", "Security Camera", "Digital Display"],
+            "routes": ["Main Gate", "Student Housing", "Academic Complex"]
+        },
+        "Central Meeting Point": {
+            "location": {"lat": 28.3825, "lon": 36.4870},
+            "capacity": 20,
+            "amenities": ["Seating Area", "Bike Racks", "Info Kiosk"],
+            "routes": ["Library", "Sports Complex", "Cafeteria"]
+        },
+        "Medical Campus Point": {
+            "location": {"lat": 28.3845, "lon": 36.4880},
+            "capacity": 12,
+            "amenities": ["Weather Protection", "Emergency Phone", "Accessibility Ramp"],
+            "routes": ["Medical School", "Research Center", "Parking Complex"]
+        }
+    }
     
     # Environmental Impact Parameters
     ECO_PARAMS = {
